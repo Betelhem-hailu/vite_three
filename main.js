@@ -2,59 +2,97 @@ import './style.css'
 
 import * as THREE from 'three';
 
+
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+var cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
+var sceneLight, portalLight, clock, portalParticles = [], smokeParticles = [];
 
 var renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
 
-var geometry = new THREE.BoxGeometry( 20, 20, 20);
-var material = new THREE.MeshLambertMaterial( { color: 0x00ff00 } );
-var cube = new THREE.Mesh( geometry, material );
-scene.add( cube );
+function initScene() {
 
-camera.position.z = 100;
+  sceneLight = new THREE.DirectionalLight(0xffffff, 0.5)
+  sceneLight.position.set(0, 0, 1);
+  scene.add(sceneLight);
 
-var light = new THREE.PointLight( 0xffff00 );
-light.position.set( 10, 0, 25 );
-light.intensity = 200;
-scene.add( light );
+  portalLight = new THREE.PointLight( 0x85abff, 30, 450, 0.6);
+  portalLight.position.set(0,0,250);
+  scene.add(portalLight);
+
+  cam.position.z = 1000;
+  scene.add(cam);
+
+  renderer.setClearColor(0x000000, 1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  particleSetup();
+}
+
+function particleSetup() {
 
 
+  const loader = new THREE.TextureLoader();
+  loader.load("./images.png", function (myTexture) {
+    var geometry = new THREE.PlaneGeometry(350, 350);
+    var material = new THREE.MeshStandardMaterial(
+      {
+        map: myTexture,
+        transparent: true
+      });
 
-var render = function () {
-  requestAnimationFrame( render );
+      var smokeGeometry = new THREE.PlaneGeometry(1000, 1000);
+      var smokeMaterial = new THREE.MeshStandardMaterial(
+        {
+          map: myTexture,
+          transparent: true
+        });
 
-  cube.rotation.x += 0.05;
-  cube.rotation.y += 0.05;
-  camera.updateProjectionMatrix();
+    for (let p = 880; p > 250; p--) {
+      let particle = new THREE.Mesh(geometry, material);
+      particle.position.set(
+        0.5 * p * Math.cos((4 * p * Math.PI) / 180),
+        0.5 * p * Math.sin((4 * p * Math.PI) / 180),
+        0.1 * p
+      );
+      particle.rotation.z = Math.random() * 360;
+      portalParticles.push(particle);
+      scene.add(particle);
+    }
 
-  renderer.render(scene, camera);
-};
+    for (let p = 0; p < 40; p++) {
+      let particle = new THREE.Mesh(smokeGeometry, smokeMaterial);
+      particle.position.set(
+        Math.random() * 1000-500,
+        Math.random() * 400-200,
+        25
+      );
+      particle.rotation.z = Math.random() * 360;
+      particle.material.opacity= 0.4;
+      portalParticles.push(particle);
+      scene.add(particle);
+    }
 
-render();
+    clock = new THREE.Clock();
+    animate();
+   
+  });
 
-// dat gui
-var gui = new dat.GUI();
-var cameraGui = gui.addFolder("camera position");
-cameraGui.add(camera.position, 'x');
-cameraGui.add(camera.position, 'y');
-cameraGui.add(camera.position, 'z');
-cameraGui.open();
+}
 
-var cameraGui = gui.addFolder("camera projection");
-cameraGui.add(camera, "fov");
-cameraGui.open();
+function animate(){
+let delta = clock.getDelta();
+portalParticles.forEach(p => {
+  p.rotation.z -= delta *1.5;
+});
+smokeParticles.forEach(p => {
+  p.rotation.z -= delta *0.2;
+});
+if(Math.random() > 0.9){
+  portalLight.power = 950 + Math.random()*500;
+}
+renderer.render(scene, cam);
+requestAnimationFrame(animate);
+}
 
-var lightGui = gui.addFolder("light position");
-lightGui.add(light.position, 'x');
-lightGui.add(light.position, 'y');
-lightGui.add(light.position, 'z');
-lightGui.open();
-
-var cubeGui = gui.addFolder("cube position");
-cubeGui.add(cube.position, 'x');
-cubeGui.add(cube.position, 'y');
-cubeGui.add(cube.position, 'z');
-cubeGui.open();
+initScene();
